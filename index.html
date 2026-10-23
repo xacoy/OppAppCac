@@ -888,7 +888,7 @@ html[data-theme="dark"] { color-scheme: dark; }
 </style>
 </head>
 <body>
-<div class="watermark" tabindex="0" data-note="Licencia aplicada al diseño y al código de esta web. Las preguntas de examen pertenecen a los organismos que las convocaron.">Hecho con <span class="wm-heart">♥</span> por Jacob · CC BY-NC-SA 4.0 <span class="wm-ver">V3_20261023_1659</span></div>
+<div class="watermark" tabindex="0" data-note="Licencia aplicada al diseño y al código de esta web. Las preguntas de examen pertenecen a los organismos que las convocaron.">Hecho con <span class="wm-heart">♥</span> por Jacob · CC BY-NC-SA 4.0 <span class="wm-ver">V3_20261023_1701</span></div>
 <div id="app">
   <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="App.closeSidebar()"></div>
   <nav class="sidebar" id="sidebar"></nav>
@@ -901,6 +901,7 @@ html[data-theme="dark"] { color-scheme: dark; }
         <input id="search-input" type="text" placeholder="Buscar en resúmenes y temario..." oninput="App.search(this.value)" autocomplete="off">
         <div class="search-results" id="search-results"></div>
       </div>
+      <button class="icon-btn" onclick="App.reloadPage()" title="Recargar la página" aria-label="Recargar la página">🔄</button>
       <div class="theme-wrap">
         <button class="theme-toggle" onclick="App.toggleThemeMenu(event)" title="Tema y tipografía" aria-haspopup="true"><span id="theme-icon">🌙</span></button>
         <div class="theme-menu" id="theme-menu" onclick="event.stopPropagation()"></div>
@@ -4497,6 +4498,10 @@ const App = {
     ui.order = shuffle(ui.order);
     ui.pos = 0;
     refreshTopicView();
+  },
+
+  reloadPage() {
+    if (confirm("¿Recargar la página? Se cargará la última versión de la app. Tu progreso guardado no se pierde.")) location.reload();
   },
 
   toggleThemeMenu(e) {
