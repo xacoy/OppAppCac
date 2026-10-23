@@ -725,7 +725,8 @@ html[data-theme="dark"] { color-scheme: dark; }
 .fcf { padding: 6px 13px; border-radius: 99px; border: 1.5px solid color-mix(in srgb, var(--c) 55%, transparent); background: color-mix(in srgb, var(--c) 10%, transparent); color: color-mix(in srgb, var(--c) 75%, var(--text)); font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit; }
 .fcf:hover { background: color-mix(in srgb, var(--c) 20%, transparent); }
 .fcf.on { background: var(--c); border-color: var(--c); color: #fff; }
-.fc-tags { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin-bottom: 16px; }
+.fc-tags { position: absolute; top: 12px; right: 14px; max-width: calc(100% - 28px); display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+.test-fc { padding-top: 48px; }
 .fc-tag { font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; padding: 2px 9px; border-radius: 99px; line-height: 1.6; }
 .fc-tag-lvl { color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); background: transparent; }
 .fc-tag-topic { color: color-mix(in srgb, var(--c) 80%, var(--text)); background: color-mix(in srgb, var(--c) 14%, transparent); }
