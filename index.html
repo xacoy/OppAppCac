@@ -870,6 +870,23 @@ html[data-theme="dark"] { color-scheme: dark; }
   .test-page .quiz-q-text { font-size: 18px; line-height: 1.4; margin-bottom: 14px; }
   .test-page .quiz-options { gap: 10px; }
   .test-page .quiz-option { padding: 14px; font-size: 16px; line-height: 1.35; border-radius: 12px; }
+  .view:has(.doc-page) { padding: 8px 8px 44px; }
+  .doc-page { border: 0; background: transparent; border-radius: 0; overflow: visible; }
+  .doc-page .content-scroll { padding: 0; min-height: 0; overflow: visible; }
+  .doc-page details.doc-note { padding: 8px 12px; font-size: 13px; }
+  .doc-page details.doc-note summary { cursor: pointer; font-weight: 600; color: var(--accent); }
+  .doc-page details.doc-note p { margin: 8px 0 0; line-height: 1.5; }
+  .doc-page .doc-search { position: sticky; top: -8px; z-index: 5; background: var(--bg); padding: 8px 0; margin-top: -4px; }
+  .doc-page .doc-search input { font-size: 16px; padding: 12px; }
+  .doc-page .doc-cat { margin: 14px 0 8px; }
+  .doc-page .doc-exam summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 12px; font-size: 14.5px; }
+  .doc-page .doc-exam .chip-count { white-space: nowrap; flex: none; }
+  .doc-page .doc-exam-body { padding: 4px 10px 12px; }
+  .doc-page .doc-q { padding: 16px 0; }
+  .doc-page .quiz-q-text { font-size: 16.5px; line-height: 1.4; }
+  .doc-page .doc-opt { padding: 12px; font-size: 15px; line-height: 1.35; border-radius: 10px; }
+  .doc-page .test-ctx { max-height: 40dvh; overflow-y: auto; overscroll-behavior: contain; }
+  .doc-page .test-ctx summary { position: sticky; top: 0; background: var(--bg-sunken); padding: 2px 0; }
   .test-page .quiz-ref { display: none; }
   .test-page .test-ctx { max-height: 34dvh; overflow-y: auto; overscroll-behavior: contain; }
   .test-page .test-ctx summary { position: sticky; top: 0; background: var(--bg-sunken); padding: 2px 0; }
@@ -888,7 +905,7 @@ html[data-theme="dark"] { color-scheme: dark; }
 </style>
 </head>
 <body>
-<div class="watermark" tabindex="0" data-note="Licencia aplicada al diseño y al código de esta web. Las preguntas de examen pertenecen a los organismos que las convocaron.">Hecho con <span class="wm-heart">♥</span> por Jacob · CC BY-NC-SA 4.0 <span class="wm-ver">V3_20261023_1805</span></div>
+<div class="watermark" tabindex="0" data-note="Licencia aplicada al diseño y al código de esta web. Las preguntas de examen pertenecen a los organismos que las convocaron.">Hecho con <span class="wm-heart">♥</span> por Jacob · CC BY-NC-SA 4.0 <span class="wm-ver">V3_20261023_1806</span></div>
 <div id="app">
   <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="App.closeSidebar()"></div>
   <nav class="sidebar" id="sidebar"></nav>
@@ -4128,8 +4145,11 @@ function renderTestDocumento() {
   CAC_BANK.exams.forEach((e, ei) => { if (count[ei] && !cats.includes(e.cat)) cats.push(e.cat); });
   const searching = ui.query.trim().length >= 3;
 
-  let html = `<div class="panel"><div class="content-scroll">`;
-  html += `<div class="doc-note">Exámenes reales y pruebas de práctica de Administrativo (C1) y Auxiliar Administrativo (C2). La respuesta correcta aparece en verde con ✔. Las preguntas repetidas entre convocatorias aparecen en cada una de ellas y van marcadas como REPETIDA (🔁) o SIMILARES (≈) según el número de exámenes en que salen: cuantas más veces, más importantes.</div>`;
+  let html = `<div class="panel doc-page"><div class="content-scroll">`;
+  const noteText = "Exámenes reales y pruebas de práctica de Administrativo (C1) y Auxiliar Administrativo (C2). La respuesta correcta aparece en verde con ✔. Las preguntas repetidas entre convocatorias aparecen en cada una de ellas y van marcadas como REPETIDA (🔁) o SIMILARES (≈) según el número de exámenes en que salen: cuantas más veces, más importantes.";
+  html += window.matchMedia("(max-width: 860px)").matches
+    ? `<details class="doc-note"><summary>ℹ️ Cómo leer este documento</summary><p>${noteText}</p></details>`
+    : `<div class="doc-note">${noteText}</div>`;
   html += `<div class="doc-search"><input id="doc-search-input" type="text" placeholder="Buscar en el documento (mín. 3 letras)…" value="${esc(ui.query)}" oninput="App.docSearch(this.value)" autocomplete="off"></div>`;
   html += `<div id="doc-results">${searching ? docSearchHtml(ui.query) : ""}</div>`;
   html += `<div id="doc-exams" ${searching ? 'style="display:none"' : ""}>`;
