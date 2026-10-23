@@ -835,6 +835,27 @@ html[data-theme="dark"] { color-scheme: dark; }
   .hero h1 { font-size: 20px; }
 }
 
+.fp-short, .fc-swipe, .fc-arrow { display: none; }
+@media (max-width: 860px) {
+  .view:has(.fic-page) { padding: 8px 8px 34px; display: flex; flex-direction: column; }
+  .topfold-btn { padding: 7px 10px; margin-bottom: 6px; }
+  .fic-page { border: 0; background: transparent; border-radius: 0; overflow: visible; }
+  .fic-page .content-scroll { padding: 0; min-height: 0; overflow: visible; }
+  .fic-page .flash-toolbar { margin: 0 0 6px; padding: 0 2px 4px; border: 0; }
+  .fic-page .fp-long { display: none; }
+  .fic-page .fp-short { display: inline; font-size: 12px; }
+  .fic-page .test-fc { min-height: calc(100dvh - 180px); margin-bottom: 4px; padding: 46px 26px 18px; touch-action: pan-y; }
+  .fic-page .flashcard-front-text { font-size: 20px; max-width: none; }
+  .fic-page .flashcard-back-text { font-size: 17px; max-width: none; }
+  .fic-page .test-fc .flashcard-front-text.fc-long { font-size: 16px; }
+  .fic-page .flash-nav, .fic-page .quiz-ref { display: none; }
+  .fic-page .fc-swipe { display: block; text-align: center; font-size: 12px; color: var(--text-faint); padding: 2px 0; }
+  .fic-page .fc-arrow { display: block; position: absolute; top: 50%; transform: translateY(-50%); background: none; border: 0; font-size: 30px; line-height: 1; padding: 10px 4px; color: var(--text-faint); cursor: pointer; }
+  .fic-page .fc-arrow:disabled { opacity: 0.25; }
+  .fic-page .fc-prev { left: 0; }
+  .fic-page .fc-next { right: 0; }
+}
+
 @media (max-width: 520px) {
   html, body { font-size: 14px; }
   .topic-grid, .guide-grid { grid-template-columns: 1fr; }
@@ -845,7 +866,7 @@ html[data-theme="dark"] { color-scheme: dark; }
 </style>
 </head>
 <body>
-<div class="watermark" tabindex="0" data-note="Licencia aplicada al diseño y al código de esta web. Las preguntas de examen pertenecen a los organismos que las convocaron.">Hecho con <span class="wm-heart">♥</span> por Jacob · CC BY-NC-SA 4.0 <span class="wm-ver">V3_20261023_1613</span></div>
+<div class="watermark" tabindex="0" data-note="Licencia aplicada al diseño y al código de esta web. Las preguntas de examen pertenecen a los organismos que las convocaron.">Hecho con <span class="wm-heart">♥</span> por Jacob · CC BY-NC-SA 4.0 <span class="wm-ver">V3_20261023_1650</span></div>
 <div id="app">
   <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="App.closeSidebar()"></div>
   <nav class="sidebar" id="sidebar"></nav>
@@ -3822,7 +3843,7 @@ function levelSelector() {
 
 /* Cabecera plegable (solo se puede plegar en pantallas pequeñas). */
 function topFold(inner, summary) {
-  const closed = !!STATE.topClosed;
+  const closed = STATE.topClosed === undefined ? window.matchMedia("(max-width: 860px)").matches : !!STATE.topClosed;
   return `<div class="topfold ${closed ? "closed" : ""}" id="topfold">
     <button class="topfold-btn" onclick="App.toggleTop()" aria-expanded="${!closed}">
       <span class="topfold-chev">▾</span>
@@ -4024,9 +4045,9 @@ function renderTestFichas() {
   if (!ui.cur) nextFicha();
   const pool = fichaPool();
 
-  let html = `<div class="panel"><div class="content-scroll">`;
+  let html = `<div class="panel fic-page"><div class="content-scroll">`;
   html += `<div class="flash-toolbar">
-    <div class="flash-progress">Fichas infinitas · <b>${pool.length}</b> fichas disponibles</div>
+    <div class="flash-progress"><span class="fp-long">Fichas infinitas · <b>${pool.length}</b> fichas disponibles</span><span class="fp-short">Ficha <b>${Math.max(1, ui.hp + 1)}</b> · ${pool.length} disponibles</span></div>
   </div>`;
 
   const q = ui.cur;
@@ -4049,12 +4070,15 @@ function renderTestFichas() {
     ${c.list ? `<ul class="fc-list">${c.list.map((o) => `<li>${esc(o)}</li>`).join("")}</ul>` : ""}
     ${e ? `<div class="fc-src">${esc(e.title)}</div>` : ""}
     ${repBadge(q)}
+    <button class="fc-arrow fc-prev" onclick="App.fichaPrev()" aria-label="Ficha anterior" ${ui.hp > 0 ? "" : "disabled"}>‹</button>
+    <button class="fc-arrow fc-next" onclick="App.fichaNext()" aria-label="Ficha siguiente">›</button>
   </div>`;
   html += `<div class="flash-nav">
     <button class="chip" onclick="App.fichaPrev()" ${ui.hp > 0 ? "" : "disabled"}>← Anterior</button>
     <button class="chip" onclick="App.fichaNext()">Siguiente →</button>
   </div>
-  <div class="quiz-ref" style="text-align:center;margin-top:10px">Atajos: ← → para navegar</div>`;
+  <div class="quiz-ref" style="text-align:center;margin-top:10px">Atajos: ← → para navegar</div>
+  <div class="fc-swipe">⟵ desliza para cambiar de ficha ⟶</div>`;
   html += `</div></div>`;
   return html;
 }
@@ -4400,9 +4424,9 @@ const App = {
   },
 
   toggleTop() {
-    STATE.topClosed = !STATE.topClosed;
-    saveState();
     const el = document.getElementById("topfold");
+    STATE.topClosed = el ? !el.classList.contains("closed") : !STATE.topClosed;
+    saveState();
     if (el) {
       el.classList.toggle("closed", STATE.topClosed);
       el.querySelector(".topfold-btn").setAttribute("aria-expanded", String(!STATE.topClosed));
@@ -4560,6 +4584,18 @@ function boot() {
     const tm = document.getElementById("theme-menu");
     if (tm) tm.classList.remove("open");
   });
+  let swipe = null;
+  document.addEventListener("touchstart", (e) => {
+    const t = e.touches[0];
+    swipe = e.target.closest && e.target.closest(".fic-page .test-fc") ? { x: t.clientX, y: t.clientY } : null;
+  }, { passive: true });
+  document.addEventListener("touchend", (e) => {
+    if (!swipe) return;
+    const t = e.changedTouches[0], dx = t.clientX - swipe.x, dy = t.clientY - swipe.y;
+    swipe = null;
+    if (Math.abs(dx) < 60 || Math.abs(dx) < 1.5 * Math.abs(dy)) return;
+    if (dx < 0) App.fichaNext(); else if (TEST_UI.fic.hp > 0) App.fichaPrev();
+  }, { passive: true });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       App.closeSidebar();
