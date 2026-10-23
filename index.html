@@ -3632,8 +3632,23 @@ function renderKeyPointsTab(t) {
 let FLASH_UI = {};
 
 function initFlash(topicId) {
-  const cards = FLASHCARDS[topicId] || [];
-  FLASH_UI[topicId] = { order: cards.map((_, i) => i), pos: 0 };
+  FLASH_UI[topicId] = { src: "tema", key: "", order: [], pos: 0 };
+}
+
+/* Fichas de un tema: las propias del tema, las sacadas de tests, o ambas. */
+function topicFlashList(topicId, src) {
+  const t = getTopic(topicId);
+  const own = src === "tests" ? [] : (FLASHCARDS[topicId] || []).map((c) => ({ front: c.front, back: c.back, list: null, note: "", tag: "Ficha de tema" }));
+  let tests = [];
+  if (src !== "tema" && t) {
+    tests = levelPool(curLevel())
+      .filter((q) => studyCard(q) && topicOf(q).name === t.shortTitle)
+      .map((q) => {
+        const c = studyCard(q);
+        return { front: c.front, back: c.back, list: c.list, note: c.note, tag: q.lvl || "Test", src: CAC_BANK.exams[q.e].title };
+      });
+  }
+  return own.concat(tests);
 }
 
 function flashWorkingOrder(topicId) {
@@ -3650,16 +3665,35 @@ function shuffle(arr) {
 }
 
 function renderFlashTab(t) {
-  const cards = FLASHCARDS[t.id] || [];
-  if (!cards.length) return `<div class="empty-hint">Todavía no hay fichas para este tema.</div>`;
   if (!FLASH_UI[t.id]) initFlash(t.id);
   const ui = FLASH_UI[t.id];
+  const cards = topicFlashList(t.id, ui.src);
+  const key = ui.src + "|" + curLevel();
+  if (ui.key !== key) {
+    ui.key = key;
+    ui.order = cards.map((_, i) => i);
+    ui.pos = 0;
+  }
 
+  const lvl = curLevel();
+  const kinds = [["tema", "Fichas del tema", "#0d9488"], ["tests", "Sacadas de tests", "#db2777"], ["ambas", "Ambas", "#d97706"]];
+  const levels = [["C1", "C1", "#2563eb"], ["C2", "C2", "#15803d"], ["all", "C1 + C2", "#9333ea"]];
+  let html = `<div class="panel"><div class="content-scroll">`;
+  html += `<div class="fc-filters">
+    <div class="fc-filter-group"><span class="fc-filter-label">Fichas</span>${kinds.map(([k, l, c]) =>
+      `<button class="fcf ${ui.src === k ? "on" : ""}" style="--c:${c}" onclick="App.flashSrc('${t.id}', '${k}')">${l}</button>`).join("")}</div>
+    ${ui.src === "tema" ? "" : `<div class="fc-filter-group"><span class="fc-filter-label">Nivel</span>${levels.map(([k, l, c]) =>
+      `<button class="fcf ${lvl === k ? "on" : ""}" style="--c:${c}" onclick="App.setLevel('${k}')">${l}</button>`).join("")}</div>`}
+  </div>`;
+
+  if (!cards.length) {
+    html += `<div class="empty-hint">No hay fichas con este filtro.</div></div></div>`;
+    return html;
+  }
   const working = flashWorkingOrder(t.id);
   if (ui.pos >= working.length) ui.pos = 0;
   const card = cards[working[ui.pos]];
 
-  let html = `<div class="panel"><div class="content-scroll">`;
   html += `<div class="flash-toolbar">
     <div class="flash-progress">Ficha <b>${ui.pos + 1}</b> / ${working.length}</div>
     <div class="flash-toolbar-actions">
@@ -3667,10 +3701,14 @@ function renderFlashTab(t) {
     </div>
   </div>`;
 
-  html += `<div class="flashcard">
-    <div class="flashcard-front-text">${esc(card.front)}</div>
+  html += `<div class="flashcard test-fc">
+    <div class="fc-tags"><span class="fc-tag fc-tag-lvl">${esc(card.tag)}</span></div>
+    <div class="flashcard-front-text${card.front.length > 240 ? " fc-long" : ""}">${esc(card.front)}</div>
     <div class="flashcard-divider"></div>
+    ${card.note ? `<div class="fc-note">${esc(card.note)}</div>` : ""}
     <div class="flashcard-back-text">${esc(card.back)}</div>
+    ${card.list ? `<ul class="fc-list">${card.list.map((o) => `<li>${esc(o)}</li>`).join("")}</ul>` : ""}
+    ${card.src ? `<div class="fc-src">${esc(card.src)}</div>` : ""}
   </div>`;
 
   html += `<div class="flash-nav">
@@ -4355,6 +4393,11 @@ const App = {
     const active = value.trim().length >= 3;
     document.getElementById("doc-results").innerHTML = active ? docSearchHtml(value) : "";
     document.getElementById("doc-exams").style.display = active ? "none" : "";
+  },
+
+  flashSrc(topicId, src) {
+    FLASH_UI[topicId].src = src;
+    refreshTopicView();
   },
 
   flashNext(topicId) {
