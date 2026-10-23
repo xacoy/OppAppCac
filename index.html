@@ -568,6 +568,8 @@ html, body {
 .test-opts summary { cursor: pointer; }
 .test-opts div { padding: 4px 0; }
 .test-opts .is-right { color: var(--success); font-weight: 600; }
+.rep-badge { display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: 0.03em; padding: 2px 9px; border-radius: 99px; line-height: 1.6; color: #b45309; background: color-mix(in srgb, #f59e0b 18%, transparent); border: 1px solid color-mix(in srgb, #f59e0b 55%, transparent); margin-bottom: 8px; cursor: help; }
+.test-fc .rep-badge { margin: 12px 0 0; }
 .doc-note { font-size: 12.5px; color: var(--text-muted); background: var(--bg-sunken); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 12px; }
 .doc-search input { width: 100%; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--bg-elevated); color: var(--text); font-size: 14px; font-family: inherit; margin-bottom: 14px; }
 .doc-cat { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); margin: 18px 0 8px; }
@@ -3653,7 +3655,7 @@ function topicFlashList(topicId, src) {
       .filter((q) => studyCard(q) && topicOf(q).name === t.shortTitle)
       .map((q) => {
         const c = studyCard(q);
-        return { front: c.front, back: c.back, list: c.list, note: c.note, tag: q.lvl || "Test", src: CAC_BANK.exams[q.e].title };
+        return { front: c.front, back: c.back, list: c.list, note: c.note, tag: q.lvl || "Test", src: CAC_BANK.exams[q.e].title, rep: repBadge(q) };
       });
   }
   return own.concat(tests);
@@ -3717,6 +3719,7 @@ function renderFlashTab(t) {
     <div class="flashcard-back-text">${esc(card.back)}</div>
     ${card.list ? `<ul class="fc-list">${card.list.map((o) => `<li>${esc(o)}</li>`).join("")}</ul>` : ""}
     ${card.src ? `<div class="fc-src">${esc(card.src)}</div>` : ""}
+    ${card.rep || ""}
   </div>`;
 
   html += `<div class="flash-nav">
@@ -3741,6 +3744,30 @@ CAC_BANK.qs.forEach((q) => {
   q.id = hashStr(q.q + "|" + q.o[q.a] + (q.c !== undefined ? "|" + q.e : ""));
   q.lvl = CAC_BANK.exams[q.e].lvl;
 });
+
+/* Preguntas repetidas entre convocatorias: se marcan en TODAS sus apariciones.
+   Se detectan por enunciado + respuesta correcta; el campo opcional q.x lista
+   convocatorias (índices de CAC_BANK.exams) donde también salió y no está en el banco. */
+function repKey(q) {
+  const n = (t) => t.toLowerCase().replace(/[^a-z0-9áéíóúñü]+/g, " ").trim();
+  return n(q.q) + "|" + n(q.o[q.a]);
+}
+(function () {
+  const groups = {};
+  CAC_BANK.qs.forEach((q) => { (groups[repKey(q)] = groups[repKey(q)] || []).push(q); });
+  CAC_BANK.qs.forEach((q) => {
+    const exams = [];
+    groups[repKey(q)].forEach((o) => { if (!exams.includes(o.e)) exams.push(o.e); });
+    (q.x || []).forEach((e) => { if (!exams.includes(e)) exams.push(e); });
+    if (exams.length > 1) q.rep = exams;
+  });
+})();
+
+function repBadge(q) {
+  if (!q.rep) return "";
+  const titles = q.rep.map((e) => CAC_BANK.exams[e].title).join("\n");
+  return `<div><span class="rep-badge" title="${esc(titles)}">🔁 Repetida · ${q.rep.length} convocatorias</span></div>`;
+}
 
 const TEST_UI = {
   quiz: { cur: null, answer: null, recent: [] },
@@ -3861,6 +3888,7 @@ function renderTestInfinito() {
   const answered = ui.answer !== null;
   html += `<div class="quiz-question test-q">
     <div class="test-q-src">${esc(examLabel(q))}</div>
+    ${repBadge(q)}
     ${ctxBlock(q, !answered)}
     <div class="quiz-q-text">${esc(q.q)}</div>
     <div class="quiz-options">`;
@@ -4026,6 +4054,7 @@ function renderTestFichas() {
     <div class="flashcard-back-text">${esc(c.back)}</div>
     ${c.list ? `<ul class="fc-list">${c.list.map((o) => `<li>${esc(o)}</li>`).join("")}</ul>` : ""}
     ${e ? `<div class="fc-src">${esc(e.title)}</div>` : ""}
+    ${repBadge(q)}
   </div>`;
   html += `<div class="flash-nav">
     <button class="chip" onclick="App.fichaPrev()" ${ui.hp > 0 ? "" : "disabled"}>← Anterior</button>
@@ -4041,6 +4070,7 @@ function renderTestFichas() {
 function docQuestion(q, showSrc) {
   let html = `<div class="doc-q">`;
   if (showSrc) html += `<div class="test-q-src">${esc(examLabel(q))}</div>`;
+  html += repBadge(q);
   const prefix = !showSrc && q.k ? esc(q.k.replace(/^R/, "Reserva ").replace(/^V/, "Variante ")) + ". " : "";
   html += `<div class="quiz-q-text">${prefix}${esc(q.q)}</div><div class="quiz-options">`;
   q.o.forEach((opt, oi) => {
@@ -4058,7 +4088,7 @@ function renderTestDocumento() {
   const searching = ui.query.trim().length >= 3;
 
   let html = `<div class="panel"><div class="content-scroll">`;
-  html += `<div class="doc-note">Exámenes reales y pruebas de práctica de Administrativo (C1) y Auxiliar Administrativo (C2). La respuesta correcta aparece en verde con ✔. Las preguntas repetidas entre convocatorias solo se muestran en la primera.</div>`;
+  html += `<div class="doc-note">Exámenes reales y pruebas de práctica de Administrativo (C1) y Auxiliar Administrativo (C2). La respuesta correcta aparece en verde con ✔. Las preguntas repetidas entre convocatorias aparecen en cada una de ellas y van marcadas con 🔁 (cuantas más veces se repiten, más importantes).</div>`;
   html += `<div class="doc-search"><input id="doc-search-input" type="text" placeholder="Buscar en el documento (mín. 3 letras)…" value="${esc(ui.query)}" oninput="App.docSearch(this.value)" autocomplete="off"></div>`;
   html += `<div id="doc-results">${searching ? docSearchHtml(ui.query) : ""}</div>`;
   html += `<div id="doc-exams" ${searching ? 'style="display:none"' : ""}>`;
