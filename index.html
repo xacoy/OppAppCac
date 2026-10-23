@@ -671,6 +671,7 @@ html[data-theme="dark"] { color-scheme: dark; }
 .watermark::after { content: attr(data-note); position: absolute; right: 0; bottom: calc(100% + 6px); width: 250px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--bg-elevated); color: var(--text-muted); box-shadow: var(--shadow); font-size: 11.5px; line-height: 1.45; opacity: 0; visibility: hidden; transform: translateY(4px); transition: opacity 0.15s, transform 0.15s; pointer-events: none; }
 .watermark:hover::after, .watermark:focus::after { opacity: 1; visibility: visible; transform: none; }
 .wm-heart { color: #e11d48; }
+.wm-ver { margin-left: 6px; padding: 1px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; }
 @media (max-width: 860px) { .watermark { right: 6px; bottom: 4px; font-size: 10px; } }
 .topfold-btn { display: none; }
 @media (max-width: 860px) {
@@ -841,7 +842,7 @@ html[data-theme="dark"] { color-scheme: dark; }
 </style>
 </head>
 <body>
-<div class="watermark" tabindex="0" data-note="Licencia aplicada al diseño y al código de esta web. Las preguntas de examen pertenecen a los organismos que las convocaron." title="Licencia aplicada al diseño y al código de esta web. Las preguntas de examen pertenecen a los organismos que las convocaron.">Hecho con <span class="wm-heart">♥</span> por Jacob · CC BY-NC-SA 4.0</div>
+<div class="watermark" tabindex="0" data-note="Licencia aplicada al diseño y al código de esta web. Las preguntas de examen pertenecen a los organismos que las convocaron." title="Licencia aplicada al diseño y al código de esta web. Las preguntas de examen pertenecen a los organismos que las convocaron.">Hecho con <span class="wm-heart">♥</span> por Jacob · CC BY-NC-SA 4.0 <span class="wm-ver">V3_20261023_1325</span></div>
 <div id="app">
   <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="App.closeSidebar()"></div>
   <nav class="sidebar" id="sidebar"></nav>
