@@ -3997,29 +3997,53 @@ function renderTestInfinito() {
 const RE_NEGATIVE = /incorrect|falsa|falso|no es cierta|no es correcta|excepto|salvo|no (?:se )?(?:corresponde|forma|incluye)/i;
 const RE_ALL = /^\s*(?:todas|todos)\b/i;
 const RE_NONE = /^\s*ninguna\b/i;
-const RE_COMBO = /^\s*([a-e](?:\s*(?:,|y|e)\s*[a-e])+)\s+(?:son|es)\b/i;
+const RE_COMBO = /^\s*(?:(?:las|los)\s+(?:respuestas|opciones|proposiciones|afirmaciones|alternativas)\s+)?([a-e]\)?(?:\s*(?:,|y|e)\s*[a-e]\)?)+)\s+(?:son|es)\b/i;
+const RE_BOTH = /^\s*(?:ambas|ambos|las dos|los dos)\b/i;
+const RE_SOME = /^\s*(?:dos|tres) de (?:las|los)\b/i;
 
 /* Convierte una pregunta de test en ficha de estudio: pregunta corta delante, respuesta redactada detrás.
+   Cuando la respuesta remite a otras opciones ("las dos anteriores", "todas", "a y c"...), la ficha
+   lista esas opciones con su letra para que se entienda sola.
    Devuelve null si la pregunta no se entiende sin su contexto (supuestos prácticos). */
 function studyCard(q) {
   if (q.fc !== undefined) return q.fc;
   q.fc = null;
   if (q.c !== undefined) return q.fc;
   const ans = q.o[q.a];
-  const others = q.o.filter((_, i) => i !== q.a);
+  const idx = q.o.map((_, i) => i);
+  const othersIdx = idx.filter((i) => i !== q.a);
+  const priorIdx = idx.filter((i) => i < q.a);
+  /* Las opciones a las que remite: las anteriores a la correcta si lo dice, o todas las demás. */
+  const refIdx = /anteriores/i.test(ans) && priorIdx.length ? priorIdx : othersIdx;
+  const labelled = (ids) => ids.map((i) => `${LETTERS[i]}) ${q.o[i]}`);
   const negative = RE_NEGATIVE.test(q.q);
   const card = { front: q.q, back: ans, list: null, note: negative ? "Se pide la opción INCORRECTA / la excepción." : "" };
   if (RE_ALL.test(ans) && /(anteriores|correctas|ciertas|opciones|respuestas)/i.test(ans)) {
-    card.back = negative ? "Todas las opciones cumplen lo que se pregunta." : "Todas las opciones son correctas:";
-    card.list = others;
+    if (/incorrect|falsa/i.test(ans)) {
+      card.back = "Todas las opciones son incorrectas:";
+    } else {
+      card.back = negative ? "Todas las opciones cumplen lo que se pregunta:" : "Todas las opciones son correctas:";
+    }
+    card.list = labelled(refIdx);
   } else if (RE_NONE.test(ans)) {
-    card.back = "Ninguna de las opciones es correcta.";
-    card.list = others.filter((o) => !/^ninguna/i.test(o));
+    card.back = "Ninguna de las opciones es correcta:";
+    card.list = labelled(refIdx.filter((i) => !/^\s*ninguna/i.test(q.o[i])));
+  } else if (RE_BOTH.test(ans)) {
+    if (priorIdx.length === 2) {
+      card.back = "Son correctas las dos anteriores:";
+      card.list = labelled(priorIdx);
+    } else {
+      card.back = ans;
+      card.list = labelled(othersIdx);
+    }
+  } else if (RE_SOME.test(ans)) {
+    card.back = ans;
+    card.list = labelled(refIdx);
   } else if (RE_COMBO.test(ans)) {
-    const letters = (RE_COMBO.exec(ans)[1].match(/[a-e]/gi) || []).map((l) => "abcde".indexOf(l.toLowerCase()));
+    const letters = (RE_COMBO.exec(ans)[1].match(/\b[a-e]\b/gi) || []).map((l) => "abcde".indexOf(l.toLowerCase()));
     if (letters.some((i) => i < 0 || i >= q.o.length || i === q.a)) return q.fc;
     card.back = "Son correctas:";
-    card.list = letters.map((i) => q.o[i]);
+    card.list = labelled(letters);
   } else if (/\b(?:letra|apartado)\s+[a-e]\b|\bopci[óo]n\s+[a-e]\b/i.test(ans)) {
     return q.fc;
   }
