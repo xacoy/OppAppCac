@@ -935,7 +935,7 @@ html[data-theme="dark"] { color-scheme: dark; }
 </style>
 </head>
 <body>
-<div class="watermark" tabindex="0" data-note="Licencia aplicada al diseño y al código de esta web. Las preguntas de examen pertenecen a los organismos que las convocaron.">Hecho con <span class="wm-heart">♥</span> por Jacob · CC BY-NC-SA 4.0 <span class="wm-ver">V3_20261029_1242</span></div>
+<div class="watermark" tabindex="0" data-note="Licencia aplicada al diseño y al código de esta web. Las preguntas de examen pertenecen a los organismos que las convocaron.">Hecho con <span class="wm-heart">♥</span> por Jacob · CC BY-NC-SA 4.0 <span class="wm-ver">V3_20261029_1246</span></div>
 <div id="app">
   <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="App.closeSidebar()"></div>
   <nav class="sidebar" id="sidebar"></nav>
@@ -3868,6 +3868,23 @@ function levelPool(level) {
   return CAC_BANK.qs.filter((q) => level === "all" || q.lvl === level);
 }
 
+/* Filtro de repetidas / similares de los tests (coincide con las etiquetas REPETIDA / SIMILARES). */
+const REP_FILTERS = [
+  ["todas", "Todas", "#6b7280", () => true],
+  ["rep", "Repetidas", "#b45309", (q) => !!q.rep],
+  ["sim", "Similares", "#4f46e5", (q) => !!q.sim],
+  ["both", "Repetidas y similares", "#0d9488", (q) => !!(q.rep || q.sim)]
+];
+
+function repFilterKey() {
+  return REP_FILTERS.some((f) => f[0] === STATE.testRep) ? STATE.testRep : "todas";
+}
+
+function testPool() {
+  const test = REP_FILTERS.find((f) => f[0] === repFilterKey())[3];
+  return levelPool(curLevel()).filter(test);
+}
+
 function weightedPick(pool, weightFn, recent) {
   if (!pool.length) return null;
   const fresh = pool.filter((q) => !recent.includes(q.id));
@@ -3932,6 +3949,18 @@ function levelName() {
   return { C1: "C1", C2: "C2", all: "C1 + C2" }[curLevel()];
 }
 
+function repSelector() {
+  const cur = repFilterKey();
+  const pool = levelPool(curLevel());
+  return `<div class="fc-filters"><div class="fc-filter-group"><span class="fc-filter-label">Mostrar</span>${REP_FILTERS.map(([k, l, c, test]) =>
+    `<button class="fcf ${cur === k ? "on" : ""}" style="--c:${c}" onclick="App.setRep('${k}')">${l} · ${pool.filter(test).length}</button>`).join("")}</div></div>`;
+}
+
+function testSummary() {
+  const k = repFilterKey();
+  return levelName() + (k === "todas" ? "" : " · " + REP_FILTERS.find((f) => f[0] === k)[1]);
+}
+
 function renderTestSection(tab) {
   const tabs = [
     { key: "infinito", label: "♾️ Test infinito" },
@@ -3942,7 +3971,7 @@ function renderTestSection(tab) {
     <div class="test-hero-badge">TESTS CAC · C1 y C2</div>
     <h1>Banco de exámenes reales y pruebas de práctica</h1>
     <p>Elige tu oposición y practica con preguntas de exámenes reales y de pruebas de práctica, con la respuesta correcta. Sin anuladas ni preguntas que dependan de tablas o imágenes.</p>
-  </div>` + levelSelector(), levelName());
+  </div>` + levelSelector() + repSelector(), testSummary());
   html += `<div class="tabs">`;
   tabs.forEach((tb) => {
     html += `<button class="tab-btn ${tb.key === active ? "active" : ""}" onclick="App.go('#/test/${tb.key}')">${esc(tb.label)}</button>`;
@@ -3957,7 +3986,7 @@ function renderTestSection(tab) {
 
 function nextQuestion() {
   const ui = TEST_UI.quiz;
-  const pool = levelPool(curLevel());
+  const pool = testPool();
   const q = weightedPick(pool, () => 1, ui.recent);
   ui.cur = q;
   ui.answer = null;
@@ -4213,7 +4242,7 @@ function docQuestion(q, showSrc) {
 function renderTestDocumento() {
   const ui = TEST_UI.doc;
   const count = {};
-  levelPool(curLevel()).forEach((q) => { count[q.e] = (count[q.e] || 0) + 1; });
+  testPool().forEach((q) => { count[q.e] = (count[q.e] || 0) + 1; });
   const cats = [];
   CAC_BANK.exams.forEach((e, ei) => { if (count[ei] && !cats.includes(e.cat)) cats.push(e.cat); });
   const searching = ui.query.trim().length >= 3;
@@ -4241,14 +4270,14 @@ function renderTestDocumento() {
 }
 
 function docExamHtml(ei) {
-  const qs = levelPool(curLevel()).filter((q) => q.e === ei);
+  const qs = testPool().filter((q) => q.e === ei);
   const withCtx = qs.find((q) => q.c !== undefined);
   return (withCtx ? ctxBlock(withCtx, false) : "") + qs.map((q) => docQuestion(q, false)).join("");
 }
 
 function docSearchHtml(query) {
   const terms = query.toLowerCase().trim().split(/\s+/);
-  const hits = levelPool(curLevel()).filter((q) => {
+  const hits = testPool().filter((q) => {
     const hay = (q.q + " " + q.o.join(" ")).toLowerCase();
     return terms.every((t) => hay.includes(t));
   });
@@ -4535,6 +4564,14 @@ const App = {
       el.classList.toggle("closed", !!STATE.navClosed[id]);
       el.querySelector(".nav-block-head").setAttribute("aria-expanded", String(!STATE.navClosed[id]));
     }
+  },
+
+  setRep(key) {
+    STATE.testRep = key;
+    saveState();
+    TEST_UI.quiz.recent = [];
+    nextQuestion();
+    render();
   },
 
   setLevel(level) {
