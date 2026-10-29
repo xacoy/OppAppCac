@@ -557,6 +557,18 @@ html, body {
 .test-hero-badge { display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; background: rgba(255,255,255,0.22); color: #fff; padding: 3px 9px; border-radius: 99px; }
 .test-filters { margin: 4px 0 16px; }
 .test-q-src { font-size: 11.5px; color: var(--text-faint); margin-bottom: 8px; }
+.test-session { margin: 0 0 8px; font-size: 11.5px; color: var(--text-faint); }
+.ts-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.ts-line b { font-weight: 600; color: var(--text-muted); }
+.ts-ok { color: var(--success); }
+.ts-ko { color: var(--danger); }
+.ts-reset { margin-left: auto; padding: 0 4px; border: 0; background: none; color: var(--text-faint); font: inherit; font-size: 13px; line-height: 1; cursor: pointer; opacity: 0.6; }
+.ts-reset:hover { opacity: 1; }
+.ts-dots { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 5px; }
+.sd { width: 6px; height: 6px; border-radius: 50%; background: var(--border-strong); }
+.sd-ok { background: var(--success); }
+.sd-ko { background: var(--danger); }
+.sd-sk { background: transparent; box-shadow: inset 0 0 0 1px var(--text-faint); }
 .opt-letter { color: var(--text-muted); margin-right: 4px; }
 .quiz-option.correct .opt-letter, .quiz-option.wrong .opt-letter { color: inherit; }
 .test-next { margin-top: 14px; display: flex; justify-content: flex-end; }
@@ -923,7 +935,7 @@ html[data-theme="dark"] { color-scheme: dark; }
 </style>
 </head>
 <body>
-<div class="watermark" tabindex="0" data-note="Licencia aplicada al diseño y al código de esta web. Las preguntas de examen pertenecen a los organismos que las convocaron.">Hecho con <span class="wm-heart">♥</span> por Jacob · CC BY-NC-SA 4.0 <span class="wm-ver">V3_20261029_1239</span></div>
+<div class="watermark" tabindex="0" data-note="Licencia aplicada al diseño y al código de esta web. Las preguntas de examen pertenecen a los organismos que las convocaron.">Hecho con <span class="wm-heart">♥</span> por Jacob · CC BY-NC-SA 4.0 <span class="wm-ver">V3_20261029_1242</span></div>
 <div id="app">
   <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="App.closeSidebar()"></div>
   <nav class="sidebar" id="sidebar"></nav>
@@ -3847,7 +3859,7 @@ function repBadge(q) {
 }
 
 const TEST_UI = {
-  quiz: { cur: null, answer: null, recent: [] },
+  quiz: { cur: null, answer: null, recent: [], log: [] },
   fic: { cur: null, recent: [], hist: [], hp: -1, src: "todas" },
   doc: { query: "" }
 };
@@ -3952,6 +3964,20 @@ function nextQuestion() {
   if (q) pushRecent(ui.recent, q.id, pool.length);
 }
 
+/* Resumen informativo de la sesión (solo en memoria: se borra al recargar). */
+function sessionBar() {
+  const log = TEST_UI.quiz.log;
+  if (!log.length) return "";
+  const n = (r) => log.filter((e) => e.r === r).length;
+  const ok = n("ok"), ko = n("ko"), sk = n("sk");
+  const dots = log.slice(-60).map((e) => `<i class="sd sd-${e.r}"></i>`).join("");
+  return `<div class="test-session" title="Preguntas de esta sesión (se borra al recargar la página)">
+    <div class="ts-line"><span><b>${ok + ko}</b> respondidas</span><span class="ts-ok">${ok} ✔</span><span class="ts-ko">${ko} ✘</span><span class="ts-sk">${sk} saltadas</span>
+      <button class="ts-reset" onclick="App.sessionReset()" title="Reiniciar el resumen de la sesión" aria-label="Reiniciar el resumen de la sesión">↺</button></div>
+    <div class="ts-dots">${dots}</div>
+  </div>`;
+}
+
 function renderTestInfinito() {
   const ui = TEST_UI.quiz;
   if (!ui.cur) nextQuestion();
@@ -3963,6 +3989,7 @@ function renderTestInfinito() {
     return html;
   }
   const answered = ui.answer !== null;
+  html += sessionBar();
   html += `<div class="quiz-question test-q">
     <div class="test-q-src">${esc(examLabel(q))}</div>
     ${repBadge(q)}
@@ -4487,10 +4514,17 @@ const App = {
     const ui = TEST_UI.quiz;
     if (!ui.cur || ui.answer !== null) return;
     ui.answer = oi;
+    ui.log.push({ id: ui.cur.id, r: oi === ui.cur.a ? "ok" : "ko" });
     refreshTest();
   },
 
-  testNext() { nextQuestion(); render(); },
+  testNext() {
+    const ui = TEST_UI.quiz;
+    if (ui.cur && ui.answer === null) ui.log.push({ id: ui.cur.id, r: "sk" });
+    nextQuestion(); render();
+  },
+
+  sessionReset() { TEST_UI.quiz.log = []; refreshTest(); },
 
   toggleNav(id) {
     if (!STATE.navClosed) STATE.navClosed = {};
