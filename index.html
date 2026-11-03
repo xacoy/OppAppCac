@@ -577,7 +577,11 @@ html, body {
 .test-secondary { background: var(--bg-elevated); color: var(--text); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 10px 16px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
 .test-secondary:hover { border-color: var(--accent); }
 .test-secondary:disabled { opacity: .4; cursor: default; }
-.doc-run { margin: 4px 0 14px; }
+.doc-exam-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 10px 12px; }
+.doc-exam-title { font-size: 13.5px; font-weight: 600; }
+.doc-exam-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.doc-exam-actions button { padding: 7px 12px; font-size: 13px; }
+.doc-exam-body[hidden] { display: none; }
 .exam-prog { margin-bottom: 14px; }
 .exam-prog-line { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; font-size: 13px; color: var(--text-muted); }
 .exam-prog-line b { color: var(--text); }
@@ -606,7 +610,6 @@ html, body {
 .doc-search input { width: 100%; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--bg-elevated); color: var(--text); font-size: 14px; font-family: inherit; margin-bottom: 14px; }
 .doc-cat { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); margin: 18px 0 8px; }
 .doc-exam { border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 8px; background: var(--bg-elevated); }
-.doc-exam summary { padding: 10px 12px; cursor: pointer; font-size: 13.5px; font-weight: 600; }
 .doc-exam-body { padding: 4px 14px 14px; border-top: 1px solid var(--border); }
 .doc-q { padding: 14px 0; border-bottom: 1px solid var(--border); }
 .doc-q:last-child { border-bottom: none; }
@@ -924,8 +927,10 @@ html[data-theme="dark"] { color-scheme: dark; }
   .doc-page .doc-search { position: sticky; top: -8px; z-index: 5; background: var(--bg); padding: 8px 0; margin-top: -4px; }
   .doc-page .doc-search input { font-size: 16px; padding: 12px; }
   .doc-page .doc-cat { margin: 14px 0 8px; }
-  .doc-page .doc-exam summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 12px; font-size: 14.5px; }
-  .doc-page .doc-exam .chip-count { white-space: nowrap; flex: none; }
+  .doc-page .doc-exam-head { padding: 12px; }
+  .doc-page .doc-exam-title { font-size: 14.5px; }
+  .doc-page .doc-exam-actions { width: 100%; }
+  .doc-page .doc-exam-actions button { flex: 1; }
   .doc-page .doc-exam-body { padding: 4px 10px 12px; }
   .doc-page .doc-q { padding: 16px 0; }
   .doc-page .quiz-q-text { font-size: 16.5px; line-height: 1.4; }
@@ -950,7 +955,7 @@ html[data-theme="dark"] { color-scheme: dark; }
 </style>
 </head>
 <body>
-<div class="watermark" tabindex="0" data-note="Licencia aplicada al diseño y al código de esta web. Las preguntas de examen pertenecen a los organismos que las convocaron.">Hecho con <span class="wm-heart">♥</span> por Jacob · CC BY-NC-SA 4.0 <span class="wm-ver">V3_20261103_1305</span></div>
+<div class="watermark" tabindex="0" data-note="Licencia aplicada al diseño y al código de esta web. Las preguntas de examen pertenecen a los organismos que las convocaron.">Hecho con <span class="wm-heart">♥</span> por Jacob · CC BY-NC-SA 4.0 <span class="wm-ver">V3_20261103_1307</span></div>
 <div id="app">
   <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="App.closeSidebar()"></div>
   <nav class="sidebar" id="sidebar"></nav>
@@ -4464,10 +4469,16 @@ function renderTestDocumento() {
     html += `<div class="doc-cat">${esc(cat)}</div>`;
     CAC_BANK.exams.forEach((e, ei) => {
       if (e.cat !== cat || !count[ei]) return;
-      html += `<details class="doc-exam" ontoggle="App.docToggle(${ei}, this)">
-        <summary>${esc(e.title)} <span class="chip-count">${count[ei]} preguntas</span></summary>
-        <div class="doc-exam-body" id="doc-exam-${ei}"></div>
-      </details>`;
+      html += `<div class="doc-exam">
+        <div class="doc-exam-head">
+          <div class="doc-exam-title">${esc(e.title)} <span class="chip-count">${count[ei]} preguntas</span></div>
+          <div class="doc-exam-actions">
+            <button class="test-primary" onclick="App.examStart(${ei})">Realizar test (${examRunList(ei).length} preguntas)</button>
+            <button class="test-secondary" onclick="App.docToggle(${ei}, this)">Ver test</button>
+          </div>
+        </div>
+        <div class="doc-exam-body" id="doc-exam-${ei}" hidden></div>
+      </div>`;
     });
   });
   html += `</div></div></div>`;
@@ -4477,9 +4488,7 @@ function renderTestDocumento() {
 function docExamHtml(ei) {
   const qs = testPool().filter((q) => q.e === ei);
   const withCtx = qs.find((q) => q.c !== undefined);
-  const nRun = examRunList(ei).length;
-  const runBtn = `<div class="doc-run"><button class="test-primary" onclick="App.examStart(${ei})">▶ Hacer este test (${nRun} preguntas)</button></div>`;
-  return runBtn + (withCtx ? ctxBlock(withCtx, false) : "") + qs.map((q) => docQuestion(q, false)).join("");
+  return (withCtx ? ctxBlock(withCtx, false) : "") + qs.map((q) => docQuestion(q, false)).join("");
 }
 
 function docSearchHtml(query) {
@@ -4835,9 +4844,12 @@ const App = {
     window.scrollTo(0, 0);
   },
 
-  docToggle(ei, el) {
+  docToggle(ei, btn) {
     const box = document.getElementById("doc-exam-" + ei);
-    if (el.open && box && !box.innerHTML) box.innerHTML = docExamHtml(ei);
+    if (!box) return;
+    if (!box.innerHTML) box.innerHTML = docExamHtml(ei);
+    box.hidden = !box.hidden;
+    btn.textContent = box.hidden ? "Ver test" : "Ocultar test";
   },
 
   docSearch(value) {
