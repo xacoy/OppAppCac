@@ -574,6 +574,21 @@ html, body {
 .test-next { margin-top: 14px; display: flex; justify-content: flex-end; }
 .test-primary { background: var(--accent); color: var(--accent-contrast); border: none; border-radius: var(--radius-sm); padding: 10px 18px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
 .test-primary:hover { filter: brightness(1.1); }
+.test-secondary { background: var(--bg-elevated); color: var(--text); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 10px 16px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.test-secondary:hover { border-color: var(--accent); }
+.test-secondary:disabled { opacity: .4; cursor: default; }
+.doc-run { margin: 4px 0 14px; }
+.exam-prog { margin-bottom: 14px; }
+.exam-prog-line { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; font-size: 13px; color: var(--text-muted); }
+.exam-prog-line b { color: var(--text); }
+.exam-prog-bar { height: 6px; border-radius: 3px; background: var(--border); margin-top: 8px; overflow: hidden; }
+.exam-prog-bar i { display: block; height: 100%; background: var(--accent); }
+.exam-score { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0 18px; }
+.exam-score > div { flex: 1 1 110px; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; text-align: center; }
+.exam-score b { display: block; font-size: 22px; }
+.exam-score span { font-size: 12px; color: var(--text-muted); }
+.exam-miss { border-top: 1px solid var(--border); padding: 10px 0; font-size: 14px; }
+.exam-miss small { display: block; color: var(--text-muted); margin-top: 4px; }
 .test-ctx { margin: 0 0 12px; background: var(--bg-sunken); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 12px; font-size: 13px; text-align: left; }
 .test-ctx summary { cursor: pointer; font-weight: 600; color: var(--accent); }
 .test-ctx p { margin: 8px 0 0; color: var(--text-muted); line-height: 1.5; }
@@ -935,7 +950,7 @@ html[data-theme="dark"] { color-scheme: dark; }
 </style>
 </head>
 <body>
-<div class="watermark" tabindex="0" data-note="Licencia aplicada al diseño y al código de esta web. Las preguntas de examen pertenecen a los organismos que las convocaron.">Hecho con <span class="wm-heart">♥</span> por Jacob · CC BY-NC-SA 4.0 <span class="wm-ver">V3_20261103_1257</span></div>
+<div class="watermark" tabindex="0" data-note="Licencia aplicada al diseño y al código de esta web. Las preguntas de examen pertenecen a los organismos que las convocaron.">Hecho con <span class="wm-heart">♥</span> por Jacob · CC BY-NC-SA 4.0 <span class="wm-ver">V3_20261103_1305</span></div>
 <div id="app">
   <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="App.closeSidebar()"></div>
   <nav class="sidebar" id="sidebar"></nav>
@@ -3621,7 +3636,7 @@ function renderSidebar(r) {
     navItem("#/fichas", "🗂️", "Fichas de repaso", r.route === "fichas"), repasoActive);
 
   html += navBlock("tests", "Tests CAC · C1 y C2", "♾️", "#7c3aed",
-    navItem("#/test/infinito", "♾️", "Test infinito", r.route === "test" && r.tab !== "documento") +
+    navItem("#/test/infinito", "♾️", "Test infinito", r.route === "test" && r.tab !== "documento" && r.tab !== "examen") +
     navItem("#/test/documento", "📄", "Documento de tests", r.route === "test" && r.tab === "documento"), r.route === "test");
 
   let temas = "";
@@ -3958,7 +3973,8 @@ function repBadge(q) {
 const TEST_UI = {
   quiz: { cur: null, answer: null, recent: [], log: [] },
   fic: { cur: null, recent: [], hist: [], hp: -1, src: "todas" },
-  doc: { query: "" }
+  doc: { query: "" },
+  run: null
 };
 
 function levelPool(level) {
@@ -4063,6 +4079,7 @@ function renderTestSection(tab) {
     { key: "infinito", label: "♾️ Test infinito" },
     { key: "documento", label: "📄 Documento de tests" }
   ];
+  if (TEST_UI.run) tabs.push({ key: "examen", label: "📝 Test en curso" });
   const active = tabs.find((t) => t.key === tab) ? tab : "infinito";
   let html = topFold(`<div class="test-hero">
     <div class="test-hero-badge">TESTS CAC · C1 y C2</div>
@@ -4075,6 +4092,7 @@ function renderTestSection(tab) {
   });
   html += `</div>`;
   if (active === "infinito") html += renderTestInfinito();
+  else if (active === "examen") html += renderExamRun();
   else html += renderTestDocumento();
   return html;
 }
@@ -4336,6 +4354,96 @@ function docQuestion(q, showSrc) {
   return html + `</div></div>`;
 }
 
+/* ----- Hacer un examen concreto (desde el Documento de tests) ----- */
+
+/* Preguntas ordinarias del examen, en su orden; las de reserva solo si el examen no tiene otras. */
+function examRunList(ei) {
+  const all = CAC_BANK.qs.filter((q) => q.e === ei);
+  const main = all.filter((q) => !/^R/.test(q.k || ""));
+  return main.length ? main : all;
+}
+
+function examRunCounts(run) {
+  let ok = 0, ko = 0;
+  run.list.forEach((q, i) => {
+    if (run.ans[i] === undefined) return;
+    if (run.ans[i] === q.a) ok++; else ko++;
+  });
+  return { ok, ko, blank: run.list.length - ok - ko };
+}
+
+function renderExamRun() {
+  const run = TEST_UI.run;
+  const e = CAC_BANK.exams[run.ei];
+  const n = run.list.length;
+  let html = `<div class="panel test-page"><div class="content-scroll">`;
+  if (run.i >= n) return html + renderExamResult(run) + `</div></div>`;
+
+  const q = run.list[run.i];
+  const c = examRunCounts(run);
+  const chosen = run.ans[run.i];
+  const answered = chosen !== undefined;
+  html += `<div class="exam-prog">
+    <div class="exam-prog-line"><b>${esc(e.title)}</b><span>Pregunta <b>${run.i + 1}</b> de ${n}</span><span class="ts-ok">${c.ok} ✔</span><span class="ts-ko">${c.ko} ✘</span></div>
+    <div class="exam-prog-bar"><i style="width:${Math.round(((run.i + (answered ? 1 : 0)) / n) * 100)}%"></i></div>
+  </div>`;
+  html += `<div class="quiz-question test-q">
+    <div class="test-q-src">${esc(examLabel(q))}</div>
+    ${repBadge(q)}
+    ${ctxBlock(q, !answered)}
+    <div class="quiz-q-text">${esc(q.q)}</div>
+    <div class="quiz-options">`;
+  q.o.forEach((opt, oi) => {
+    let cls = "quiz-option";
+    if (answered) {
+      if (oi === q.a) cls += " correct";
+      else if (oi === chosen) cls += " wrong";
+      cls += " disabled";
+    }
+    html += `<button class="${cls}" ${answered ? "disabled" : ""} onclick="App.examAnswer(${oi})"><b class="opt-letter">${LETTERS[oi]})</b> ${esc(opt)}</button>`;
+  });
+  html += `</div>`;
+  if (answered) {
+    html += chosen === q.a
+      ? `<div class="quiz-result correct">✅ ¡Correcto!</div>`
+      : `<div class="quiz-result wrong">❌ Incorrecto. La respuesta correcta es: <b>${LETTERS[q.a]}) ${esc(q.o[q.a])}</b></div>`;
+  }
+  const last = run.i === n - 1;
+  html += `<div class="test-next" style="justify-content:space-between;gap:8px">
+    <button class="test-secondary" onclick="App.examPrev()" ${run.i === 0 ? "disabled" : ""}>← Anterior</button>
+    <button class="${answered ? "test-primary" : "test-secondary"}" onclick="App.examNext()">${last ? "Ver resultado" : answered ? "Siguiente →" : "Saltar →"}</button>
+  </div></div></div></div>`;
+  return html;
+}
+
+function renderExamResult(run) {
+  const e = CAC_BANK.exams[run.ei];
+  const n = run.list.length;
+  const c = examRunCounts(run);
+  let html = `<div class="exam-prog"><div class="exam-prog-line"><b>${esc(e.title)}</b><span>Resultado</span></div></div>
+    <div class="exam-score">
+      <div><b class="ts-ok">${c.ok}</b><span>aciertos</span></div>
+      <div><b class="ts-ko">${c.ko}</b><span>errores</span></div>
+      <div><b>${c.blank}</b><span>en blanco</span></div>
+      <div><b>${Math.round((c.ok / n) * 100)} %</b><span>de ${n} preguntas</span></div>
+    </div>
+    <div class="test-next" style="justify-content:flex-start;gap:8px;margin:0 0 14px">
+      <button class="test-primary" onclick="App.examStart(${run.ei})">↻ Repetir este test</button>
+      <button class="test-secondary" onclick="App.go('#/test/documento')">Volver al documento</button>
+    </div>`;
+  const miss = run.list.map((q, i) => ({ q, i })).filter(({ q, i }) => run.ans[i] !== q.a);
+  if (miss.length) {
+    html += `<h3>Para repasar (${miss.length})</h3>`;
+    miss.forEach(({ q, i }) => {
+      const mine = run.ans[i] === undefined ? "En blanco" : `Tu respuesta: ${LETTERS[run.ans[i]]}) ${esc(q.o[run.ans[i]])}`;
+      html += `<div class="exam-miss"><b>${i + 1}.</b> ${esc(q.q)}<small>${mine}</small><small>Correcta: <b>${LETTERS[q.a]}) ${esc(q.o[q.a])}</b></small></div>`;
+    });
+  } else {
+    html += `<div class="quiz-result correct">🎉 ¡Todas correctas!</div>`;
+  }
+  return html;
+}
+
 function renderTestDocumento() {
   const ui = TEST_UI.doc;
   const count = {};
@@ -4369,7 +4477,9 @@ function renderTestDocumento() {
 function docExamHtml(ei) {
   const qs = testPool().filter((q) => q.e === ei);
   const withCtx = qs.find((q) => q.c !== undefined);
-  return (withCtx ? ctxBlock(withCtx, false) : "") + qs.map((q) => docQuestion(q, false)).join("");
+  const nRun = examRunList(ei).length;
+  const runBtn = `<div class="doc-run"><button class="test-primary" onclick="App.examStart(${ei})">▶ Hacer este test (${nRun} preguntas)</button></div>`;
+  return runBtn + (withCtx ? ctxBlock(withCtx, false) : "") + qs.map((q) => docQuestion(q, false)).join("");
 }
 
 function docSearchHtml(query) {
@@ -4695,6 +4805,35 @@ const App = {
   fichaNext() { nextFicha(); render(); },
 
   fichaPrev() { nextFicha(true); render(); },
+
+  examStart(ei) {
+    const list = examRunList(ei);
+    if (!list.length) return;
+    TEST_UI.run = { ei, list, i: 0, ans: {} };
+    App.go("#/test/examen");
+    window.scrollTo(0, 0);
+  },
+
+  examAnswer(oi) {
+    const run = TEST_UI.run;
+    if (!run || run.ans[run.i] !== undefined) return;
+    run.ans[run.i] = oi;
+    refreshTest();
+  },
+
+  examNext() { App.examStep(1); },
+
+  examPrev() { App.examStep(-1); },
+
+  examStep(d) {
+    const run = TEST_UI.run;
+    if (!run) return;
+    run.i = Math.max(0, Math.min(run.list.length, run.i + d));
+    refreshTest();
+    const view = document.getElementById("view");
+    if (view) view.scrollTop = 0;
+    window.scrollTo(0, 0);
+  },
 
   docToggle(ei, el) {
     const box = document.getElementById("doc-exam-" + ei);
