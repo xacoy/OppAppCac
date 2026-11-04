@@ -591,6 +591,16 @@ html, body {
 .exam-score > div { flex: 1 1 110px; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; text-align: center; }
 .exam-score b { display: block; font-size: 22px; }
 .exam-score span { font-size: 12px; color: var(--text-muted); }
+.exam-grade { margin: 0 0 16px; padding: 14px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border); border-left: 5px solid var(--text-faint); background: var(--bg-elevated); }
+.exam-grade.pass { border-left-color: var(--success); background: var(--success-soft); }
+.exam-grade.fail { border-left-color: var(--danger); background: var(--danger-soft); }
+.exam-grade-main { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.exam-grade-main b { font-size: 30px; letter-spacing: -0.02em; }
+.exam-grade-main span { color: var(--text-muted); font-size: 14px; }
+.exam-grade-main em { font-style: normal; font-weight: 700; margin-left: 6px; }
+.exam-grade.pass em { color: var(--success); }
+.exam-grade.fail em { color: var(--danger); }
+.exam-grade small { display: block; margin-top: 8px; color: var(--text-muted); line-height: 1.5; font-size: 12.5px; }
 .exam-miss { border-top: 1px solid var(--border); padding: 10px 0; font-size: 14px; }
 .exam-miss small { display: block; color: var(--text-muted); margin-top: 4px; }
 .test-ctx { margin: 0 0 12px; background: var(--bg-sunken); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 12px; font-size: 13px; text-align: left; }
@@ -955,7 +965,7 @@ html[data-theme="dark"] { color-scheme: dark; }
 </style>
 </head>
 <body>
-<div class="watermark" tabindex="0" data-note="Licencia aplicada al diseño y al código de esta web. Las preguntas de examen pertenecen a los organismos que las convocaron.">Hecho con <span class="wm-heart">♥</span> por Jacob · CC BY-NC-SA 4.0 <span class="wm-ver">V3_20261103_1400</span></div>
+<div class="watermark" tabindex="0" data-note="Licencia aplicada al diseño y al código de esta web. Las preguntas de examen pertenecen a los organismos que las convocaron.">Hecho con <span class="wm-heart">♥</span> por Jacob · CC BY-NC-SA 4.0 <span class="wm-ver">V3_20261104_0720</span></div>
 <div id="app">
   <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="App.closeSidebar()"></div>
   <nav class="sidebar" id="sidebar"></nav>
@@ -4421,6 +4431,28 @@ function renderExamRun() {
   return html;
 }
 
+/* Nota según las bases del ejercicio único (C2 turno libre, 31 oct 2026):
+   parte general: acierto 0,20 y cada 3 errores restan 0,20; supuesto práctico: acierto 0,40 y cada 2 errores restan 0,40;
+   las respuestas en blanco no penalizan; de 0 a 10 y hay que sacar 5 para superar cada parte. */
+function examGrade(run, c) {
+  const t = CAC_BANK.exams[run.ei].title;
+  const sup = /Supuesto|adicional/i.test(t);
+  const gen = /Parte general|Primera parte/i.test(t);
+  if (!(sup || gen) || !/2026/.test(t)) return null;
+  const w = sup ? 0.4 : 0.2;
+  const per = sup ? 2 : 3;
+  const n = run.list.length;
+  const bonus = c.ok * w;
+  const malus = Math.floor(c.ko / per) * w;
+  const raw = Math.max(0, bonus - malus);
+  const nota = n ? Math.min(10, (raw / (n * w)) * 10) : 0;
+  return { nota, bonus, malus, w, per, pass: nota >= 5 };
+}
+
+function fmt2(x) {
+  return x.toFixed(2).replace(".", ",");
+}
+
 function renderExamResult(run) {
   const e = CAC_BANK.exams[run.ei];
   const n = run.list.length;
@@ -4432,6 +4464,14 @@ function renderExamResult(run) {
       <div><b>${c.blank}</b><span>en blanco</span></div>
       <div><b>${Math.round((c.ok / n) * 100)} %</b><span>de ${n} preguntas</span></div>
     </div>
+    ${(() => {
+      const g = examGrade(run, c);
+      if (!g) return "";
+      return `<div class="exam-grade ${g.pass ? "pass" : "fail"}">
+        <div class="exam-grade-main"><b>${fmt2(g.nota)}</b><span>/ 10</span><em>${g.pass ? "Superado" : "No superado"} (mínimo 5)</em></div>
+        <small>Según las bases del ejercicio único (C2 turno libre, 31 oct 2026): ${c.ok} aciertos × ${fmt2(g.w)} = ${fmt2(g.bonus)}; ${c.ko} errores → ${Math.floor(c.ko / g.per)} descuentos de ${fmt2(g.w)} (uno por cada ${g.per} errores) = −${fmt2(g.malus)}. Las preguntas en blanco no penalizan. La calificación final del ejercicio es la media de las dos partes, que deben estar superadas.</small>
+      </div>`;
+    })()}
     <div class="test-next" style="justify-content:flex-start;gap:8px;margin:0 0 14px">
       <button class="test-primary" onclick="App.examStart(${run.ei})">↻ Repetir este test</button>
       <button class="test-secondary" onclick="App.go('#/test/documento')">Volver al documento</button>
